@@ -1,0 +1,185 @@
+[project]
+name = "pydantic-open-inference"
+version = "0.1.0"
+description = "Call an Open Inference server using pydantic models defining your model inputs and outputs."
+authors = [{ name = "Anton Vikström" }]
+license = "MIT"
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = [
+  "pydantic",
+  "open inference",
+  "kserve",
+  "triton",
+  "machine learning",
+  "ml",
+  "inference",
+]
+classifiers = [
+  "Natural Language :: English",
+  "Python",
+  "Python :: 3 :: Only",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Operating System :: OS Independent",
+  "Typing :: Typed",
+  "Intended Audience :: Science/Rearch",
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "Intended Audience :: Other Audience",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Framework :: Pydantic",
+  "Framework :: Pydantic :: 2",
+  "Development Status :: 5 - Production/Stable",
+]
+dependencies = [
+  "httpx==0.28.*",
+  "more-itertools==10.* ; python_full_version < '3.13'",
+  "pydantic==2.*",
+]
+
+[dependency-groups]
+dev = [
+  "mypy>=1.18.2",
+  "pytest>=9.0.0",
+  "pytest-cov>=7.0.0",
+  "pytest-integration>=0.2.3",
+  "pytest-random-order>=1.2.0",
+  "ruff>=0.14.4",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.8,<0.10.0"]
+build-backend = "uv_build"
+
+[project.urls]
+Repository = "https://github.com/mam-dev/pydantic-open-inference"
+
+[tool.uv]
+cache-keys = [{ file = "pyproject.toml" }, { git = true }]
+
+[tool.coverage.run]
+branch = true
+source = ["src", "examples"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 100
+
+[tool.pytest.ini_options]
+addopts = ["--cov", "--random-order"]
+testpaths = ["tests"]
+
+[tool.mypy]
+files = ["src", "tests", "examples"]
+plugins = ["pydantic.mypy"]
+pretty = true
+warn_no_return = true
+warn_return_any = true
+warn_unused_configs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
+check_untyped_defs = true
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+no_implicit_reexport = true
+strict_equality = true
+extra_checks = true
+enable_error_code = """
+explicit-override,\
+deprecated,\
+truthy-iterable,\
+ignore-without-code,\
+possibly-undefined,\
+redundant-expr,\
+truthy-bool"""
+
+
+[tool.ruff]
+line-length = 120
+extend-include = ["tests/**/.py", "examples/**/*.py"]
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "F",   # pyflakes
+  "UP",  # pyupgrade
+  "S",   # flake8-bandit
+  "D",   # pydocstyle
+  "PT",  # flake8-pytest-style
+  "I",   # isort
+  "RUF", # Ruff-specific rules
+  "PTH", # flake8-use-pathlib
+  "ERA", # eradicate
+  "PL",  # pylint
+  "FBT", # flake8-boolean-trap
+  "B",   # flake8-bugbear
+  "A",   # flake8-builtins
+  "ISC", # flake8-implicit-str-concat
+  "INP", # flake8-no-pep420
+  "SLF", # flake8-self
+  "SIM", # flake8-simplify
+  "TID", # flake8-tidy-imports
+  "ARG", # flake8-unused-arguments
+  "TRY", # tryceratops
+  "FLY",  # flynt
+  "RSE",  # flake8-raise
+  "RET",  # flake8-return
+  "FIX",  # flake8-fixme
+  "Q",    # flake8-quotes
+  "C4",   # flake8-comprehensions
+  "DTZ",  # flake8-datetimez
+  "T10",  # flake8-debugger
+  "T20",  # flake8-print
+  "TCH",  # flake8-type-checking
+  "ASYNC",  # flake8-async
+  "BLE",  # flake8-blind-except
+  "LOG",  # flake8-logging
+  "SLOT",  # flake8-slots
+  "NPY",  # Numpy-specific rules
+  "PD",  # pandas-vet
+  "PERF",  # Perflint
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+  "D101",  # undocumented public class
+  "D103",  # undocumented public function
+  "FBT001",  # boolean positional arg
+  "SLF001",  # private member access
+  "PLR2004",  # magic-value compare
+  "PLR0913",  # too many args
+  "ARG001",  # unused arg
+  "S101",  # use of 'assert'
+]
+"examples/**/*.py" = [
+  "T201",  # print statement
+  "INP001",  # implicit namespace
+  "ERA001",  # commented-out code
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.flake8-pytest-style]
+fixture-parentheses = false
+mark-parentheses = false
+parametrize-names-type = "csv"
+parametrize-values-type = "list"
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "parents"
