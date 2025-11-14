@@ -1,6 +1,14 @@
 """Example: Call a model with multiple inputs and outputs."""
 
-from enum import StrEnum
+import sys
+
+if sys.version_info < (3, 11):
+    from enum import Enum
+
+    class StrEnum(str, Enum):
+        """Replacement for enum.StrEnum, introduced in 3.11."""
+else:
+    from enum import StrEnum
 
 from pydantic import Field
 
