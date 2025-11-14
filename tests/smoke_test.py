@@ -3,6 +3,7 @@
 Just checks that imports etc work properly.
 
 """
+
 from pydantic_open_inference import (
     BadStatusCodeFromServerError,  # noqa: F401
     DatatypeOverride,  # noqa: F401
