@@ -15,6 +15,17 @@ jobs:
       id-token: write
       contents: read
     steps:
+      - name: checkout
+        uses: actions/checkout@v5
+      - name: set up Python ${{ matrix.python_version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: setup uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
       - name: verify tag
         run: '[ "v$(uv version --short)" == "${{ github.event.release.tag_name}}" ]'
       - name: build
