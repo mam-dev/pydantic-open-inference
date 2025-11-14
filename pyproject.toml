@@ -4,6 +4,7 @@ version = "1.0.0"
 description = "Call an Open Inference server using pydantic models defining your model inputs and outputs."
 authors = [{ name = "Anton Vikström" }]
 license = "MIT"
+license-files = ["LICENSE"]
 readme = "README.md"
 requires-python = ">=3.10"
 keywords = [
