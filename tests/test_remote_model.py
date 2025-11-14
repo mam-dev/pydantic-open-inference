@@ -245,7 +245,7 @@ def test_remote_model_infer__wrong_type(mock_client_api_cls: Mock) -> None:
         outputs_model=mock_outputs_model,
         server_url="https://server/",
     )
-    bad_input = NamedTuplesInputsBaseModel(values=[(1, 2)])
+    bad_input = NamedTuplesInputsBaseModel(values=[Point(x=1, y=2)])
     with pytest.raises(TypeError):
         _ = remote_model.infer(bad_input)  # type: ignore[arg-type]
     mock_client_api_cls.return_value.infer.assert_not_called()
