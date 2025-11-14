@@ -40,13 +40,9 @@ jobs:
       - name: mypy
         run: uv run --no-sync mypy --junit-xml="mypy-junit.xml"
       - name: test
-        run: uv run --no-sync pytest --cov-report="term" --cov-report="xml:coverage.xml" --junitxml="pytest-junit.xml"
+        run: uv run --no-sync pytest --cov-report="term" --junitxml="pytest-junit.xml"
       - name: junit report
         uses: mikepenz/action-junit-report@v5
         if: ${{ always() }}
         with:
           report_paths: '*-junit.xml'
-      - name: coverage report
-        uses: insightsengineering/coverage-action@v3
-        with:
-          path: coverage.xml
