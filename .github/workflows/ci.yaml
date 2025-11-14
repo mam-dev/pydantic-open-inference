@@ -46,3 +46,7 @@ jobs:
         if: ${{ always() }}
         with:
           report_paths: '*-junit.xml'
+      - name: coverage report
+        uses: insightsengineering/coverage-action@v3
+        with:
+          path: coverage.xml
