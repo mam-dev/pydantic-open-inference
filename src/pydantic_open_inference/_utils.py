@@ -3,7 +3,12 @@ from __future__ import annotations
 import itertools
 import sys
 import types
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Literal, NotRequired, TypedDict, override
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Literal, NotRequired, TypedDict
+
+if sys.version_info < (3, 12):
+    from typing_extensions import override  # pragma: no cover
+else:
+    from typing import override  # pragma: no cover
 
 if sys.version_info < (3, 13):
     from more_itertools import batched  # pragma: no cover

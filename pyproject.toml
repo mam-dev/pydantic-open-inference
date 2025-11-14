@@ -53,6 +53,7 @@ dev = [
   "pytest-integration>=0.2.3",
   "pytest-random-order>=1.2.0",
   "ruff>=0.14.4",
+  "typing-extensions>=4.15.0 ; python_full_version < '3.12'",
 ]
 
 [build-system]
