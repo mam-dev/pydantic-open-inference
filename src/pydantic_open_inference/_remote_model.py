@@ -3,12 +3,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 if TYPE_CHECKING:
-    import sys  # pragma: no cover
+    import sys
 
     if sys.version_info < (3, 11):
-        from typing_extensions import Self  # pragma: no cover
+        from typing_extensions import Self
     else:
-        from typing import Self  # pragma: no cover
+        from typing import Self
 
 import pydantic
 
