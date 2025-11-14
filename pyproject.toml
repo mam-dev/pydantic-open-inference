@@ -65,6 +65,10 @@ Repository = "https://github.com/mam-dev/pydantic-open-inference"
 [tool.uv]
 cache-keys = [{ file = "pyproject.toml" }, { git = true }]
 
+[[tool.uv.index]]
+url = "https://pypi.python.org/simple"
+default = true
+
 [tool.coverage.run]
 branch = true
 source = ["src", "examples"]
