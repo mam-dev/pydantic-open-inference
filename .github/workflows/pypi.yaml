@@ -16,7 +16,7 @@ jobs:
       contents: read
     steps:
       - name: verify tag
-        run: '[ $(uv version --short) == "${{ github.event.release.tag_name}}" ]'
+        run: '[ "v$(uv version --short)" == "${{ github.event.release.tag_name}}" ]'
       - name: build
         run: uv build --no-sources
       - name: smoke test (wheel)
