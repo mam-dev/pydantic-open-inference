@@ -1,6 +1,6 @@
 [project]
 name = "pydantic-open-inference"
-version = "0.1.0"
+version = "1.0.0"
 description = "Call an Open Inference server using pydantic models defining your model inputs and outputs."
 authors = [{ name = "Anton Vikström" }]
 license = "MIT"
