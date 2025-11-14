@@ -5,8 +5,8 @@
 [![image](https://img.shields.io/github/license/mam-dev/pydantic-open-inference
 )](https://github.com/mam-dev/pydantic-open-inference/blob/main/LICENSE)
 [![image](https://img.shields.io/pypi/pyversions/pydantic-open-inference)](https://pypi.python.org/pypi/pydantic-open-inference)
-[![Actions status](https://img.shields.io/github/actions/workflow/status/mam-dev/pydantic-open-inference/CI
-)](https://github.com/mam-dev/pydantic-open-inference/actions)
+[![Actions status](https://github.com/mam-dev/pydantic-open-inference/actions/workflows/ci.yaml/badge.svg)](https://github.com/mam-dev/pydantic-open-inference/actions)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://www.mypy-lang.org)
 
