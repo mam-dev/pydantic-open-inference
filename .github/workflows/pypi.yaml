@@ -34,5 +34,5 @@ jobs:
         run: uv run --isolated --no-project --with dist/*.whl tests/smoke_test.py
       - name: smoke test (sdist)
         run: uv run --isolated --no-project --with dist/*.tar.gz tests/smoke_test.py
-      - name: publish (fake)
-        run: uv publish --dry-run
+      - name: publish
+        run: uv publish
