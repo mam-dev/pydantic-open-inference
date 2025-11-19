@@ -18,8 +18,8 @@ keywords = [
 ]
 classifiers = [
   "Natural Language :: English",
-  "Python",
-  "Python :: 3 :: Only",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
@@ -28,7 +28,7 @@ classifiers = [
   "Programming Language :: Python :: 3.14",
   "Operating System :: OS Independent",
   "Typing :: Typed",
-  "Intended Audience :: Science/Rearch",
+  "Intended Audience :: Science/Research",
   "Intended Audience :: Developers",
   "Intended Audience :: System Administrators",
   "Intended Audience :: Other Audience",
