@@ -28,6 +28,7 @@ coding handling raw tensors and their shapes.
 * ✅ Support calling inference for versioned and unversioned models
 * ✅ Error handling with custom exceptions - handle, e.g., specific error codes from the inference server differently
 * ✅ Fully typed - use, e.g., [mypy](https://mypy-lang.org/) and its [pydantic plugin](https://docs.pydantic.dev/latest/integrations/mypy/) to type check your code
+* ✅ Thread safe
 
 ## Installation
 Installation using [pip](https://github.com/pypa/pip):
