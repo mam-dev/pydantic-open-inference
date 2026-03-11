@@ -212,6 +212,27 @@ def test_remote_model_instantiate(mock_client_api_cls: Mock) -> None:
     )
 
 
+@pytest.mark.parametrize("with_version, timeout", itertools.product([True, False], [None, 3.4]))
+def test_remote_model_is_ready(mock_client_api_cls: Mock, with_version: bool, timeout: float | None) -> None:
+    fake_model_name = "my_model"
+    fake_version = "1.2.3"
+    remote_model: RemoteModel[IntTuplesInputsBaseModel, OutputsBaseModel] = RemoteModel(
+        model_name=fake_model_name,
+        model_version=fake_version if with_version else None,
+        inputs_model=IntTuplesInputsBaseModel,
+        outputs_model=Mock(spec=OutputsBaseModel),
+        server_url="https://server/",
+        request_timeout_seconds=timeout,
+    )
+    actual = remote_model.is_ready()
+    assert actual == mock_client_api_cls.return_value.model_readiness.return_value
+    mock_client_api_cls.return_value.model_readiness.assert_called_once_with(
+        model_name=fake_model_name,
+        model_version=fake_version if with_version else None,
+        timeout_seconds=timeout,
+    )
+
+
 @pytest.mark.parametrize("with_version, timeout", itertools.product([False, True], [None, 4.5]))
 def test_remote_model_infer(mock_client_api_cls: Mock, with_version: bool, timeout: float | None) -> None:
     fake_model_name = "my_model"

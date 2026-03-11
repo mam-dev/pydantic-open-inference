@@ -231,6 +231,14 @@ class RemoteModel(Generic[InputsModelT, OutputsModelT]):
         self._client_API = OpenInferenceHTTPClientAPI(base_url=server_url)
         self._request_timeout_seconds = request_timeout_seconds
 
+    def is_ready(self) -> bool:
+        """Return whether the remote model is ready."""
+        return self._client_API.model_readiness(
+            model_name=self._model_name,
+            model_version=self._model_version,
+            timeout_seconds=self._request_timeout_seconds,
+        )
+
     def infer(self, inputs: InputsModelT) -> OutputsModelT:
         """Use the remote model for inference.
 
