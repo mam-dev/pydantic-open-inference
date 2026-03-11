@@ -67,19 +67,19 @@ def test_client_api_is_singleton() -> None:
     [
         (
             None,
-            httpx.Response(status_code=200, json={"model_name": "my_model", "ready": True}),
+            httpx.Response(status_code=200, json={"name": "my_model", "ready": True}),
             None,
             True,
         ),
         (
             "1.0",
-            httpx.Response(status_code=200, json={"model_name": "my_model", "ready": True}),
+            httpx.Response(status_code=200, json={"name": "my_model", "ready": True}),
             5.0,
             True,
         ),
         (
             None,
-            httpx.Response(status_code=200, json={"model_name": "my_model", "ready": False}),
+            httpx.Response(status_code=200, json={"name": "my_model", "ready": False}),
             None,
             False,
         ),
