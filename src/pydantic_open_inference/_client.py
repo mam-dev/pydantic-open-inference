@@ -42,6 +42,25 @@ class OpenInferenceHTTPClientAPI(metaclass=Singleton):
         )
         atexit.register(self._client.close)
 
+    @staticmethod
+    def _get_model_url(model_name: str, model_version: str | None) -> str:
+        if model_version is None:
+            return f"v2/models/{model_name}"
+        return f"v2/models/{model_name}/versions/{model_version}"
+
+    def model_readiness(
+        self, model_name: str, model_version: str | None = None, timeout_seconds: float | None = None
+    ) -> bool:
+        try:
+            response = self._client.get(
+                f"{self._get_model_url(model_name, model_version)}/ready",
+                timeout=timeout_seconds,
+            ).raise_for_status()
+        except httpx.HTTPStatusError:
+            return False
+        else:
+            return cast("bool", response.json().get("ready", False))
+
     def infer(
         self,
         model_name: str,
@@ -54,12 +73,8 @@ class OpenInferenceHTTPClientAPI(metaclass=Singleton):
             payload: dict[str, list[OpenInferenceAPIInput] | list[OpenInferenceAPIRequestedOutput]] = {"inputs": inputs}
             if outputs is not None:
                 payload["outputs"] = outputs
-            if model_version is None:
-                url = f"v2/models/{model_name}/infer"
-            else:
-                url = f"v2/models/{model_name}/versions/{model_version}/infer"
             response = self._client.post(
-                url,
+                f"{self._get_model_url(model_name, model_version)}/infer",
                 json=payload,
                 timeout=timeout_seconds,
             ).raise_for_status()
