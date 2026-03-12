@@ -29,6 +29,8 @@ coding handling raw tensors and their shapes.
 * ✅ Error handling with custom exceptions - handle, e.g., specific error codes from the inference server differently
 * ✅ Fully typed - use, e.g., [mypy](https://mypy-lang.org/) and its [pydantic plugin](https://docs.pydantic.dev/latest/integrations/mypy/) to type check your code
 * ✅ Thread safe
+* ✅ Also supports the predecessor to open inference, the [predict protocol](https://github.com/kserve/kserve/blob/master/docs/predict-api/v2/required_api.md), 
+which is very similar.
 
 ## Installation
 Installation using [pip](https://github.com/pypa/pip):

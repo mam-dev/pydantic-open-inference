@@ -59,6 +59,14 @@ class OpenInferenceHTTPClientAPI(metaclass=Singleton):
         except httpx.HTTPStatusError:
             return False
         else:
+            if not response.content:
+                # No content indicates the "Predict Protocol - Version 2"
+                # which is deceptively similar to the Open Inference V2 protocol
+                # https://github.com/kserve/kserve/blob/master/docs/predict-api/v2/required_api.md
+                # So the fact that the request was successful means the model is ready.
+                return True
+            # Content indicates the actual "Open Inference V2" protocol,
+            # so the readiness is in the "Model Ready Response JSON Object"
             return cast("bool", response.json().get("ready", False))
 
     def infer(
