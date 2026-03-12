@@ -85,6 +85,24 @@ def test_client_api_is_singleton() -> None:
         ),
         (
             None,
+            httpx.Response(status_code=200),
+            None,
+            True,
+        ),
+        (
+            "1.0",
+            httpx.Response(status_code=200),
+            5.0,
+            True,
+        ),
+        (
+            None,
+            httpx.Response(status_code=400),
+            None,
+            False,
+        ),
+        (
+            None,
             httpx.Response(status_code=404),
             None,
             False,
