@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import atexit
+import contextlib
 from json import JSONDecodeError
 from typing import Any
 from unittest.mock import Mock
@@ -19,6 +20,7 @@ from pydantic_open_inference._client import (
 from pydantic_open_inference._utils import (
     OpenInferenceAPIInput,
     OpenInferenceAPIRequestedOutput,
+    OpenInferenceModelMetadata,
     Singleton,
 )
 
@@ -60,6 +62,69 @@ def test_client_api_instantiation(
 
 def test_client_api_is_singleton() -> None:
     assert isinstance(OpenInferenceHTTPClientAPI, Singleton)
+
+
+@pytest.mark.parametrize(
+    "model_version, response, timeout, expected",
+    [
+        (
+            None,
+            httpx.Response(
+                status_code=200,
+                json=(metadata := {"name": "my_model", "platform": "triton", "inputs": [], "outputs": []}),
+            ),
+            None,
+            metadata,
+        ),
+        (
+            "1.0",
+            httpx.Response(
+                status_code=200,
+                json=(
+                    metadata := {
+                        "name": "my_model",
+                        "versions": ["1.0"],
+                        "platform": "triton",
+                        "inputs": [],
+                        "outputs": [],
+                    }
+                ),
+            ),
+            None,
+            metadata,
+        ),
+        (
+            None,
+            httpx.Response(status_code=500),
+            None,
+            BadStatusCodeFromServerError(status_code=500),
+        ),
+    ],
+)
+def test_client_api_model_metadata(
+    mock_httpx_client_cls: Mock,
+    model_version: str | None,
+    response: httpx.Response,
+    timeout: float | None,
+    expected: OpenInferenceModelMetadata | BadStatusCodeFromServerError,
+) -> None:
+    response.request = Mock(spec=httpx.Request, url="http://some/url")
+    mock_httpx_client_cls.return_value.get.return_value = response
+    api = OpenInferenceHTTPClientAPI(base_url="https://server/")
+    with contextlib.ExitStack() as ctx:
+        if isinstance(expected, BadStatusCodeFromServerError):
+            ctx.enter_context(pytest.raises(BadStatusCodeFromServerError, match=rf"{response.status_code}"))
+        actual = api.model_metadata(
+            "my_model",
+            model_version=model_version,
+            timeout_seconds=timeout,
+        )
+    if not isinstance(expected, BadStatusCodeFromServerError):
+        assert actual == expected
+    mock_httpx_client_cls.return_value.get.assert_called_once_with(
+        "v2/models/my_model" if model_version is None else f"v2/models/my_model/versions/{model_version}",
+        timeout=timeout,
+    )
 
 
 @pytest.mark.parametrize(
