@@ -19,6 +19,32 @@ if sys.version_info < (3, 13):
     from more_itertools import batched  # pragma: no cover
 else:
     from itertools import batched  # pragma: no cover
+
+if sys.version_info >= (3, 14):  # pragma: no cover
+    from typing import evaluate_forward_ref
+elif sys.version_info >= (3, 13):  # pragma: no cover
+
+    def evaluate_forward_ref(
+        forward_ref: ForwardRef,
+        *,
+        type_params: Any,
+        globals: Any | None = None,  # noqa: A002
+        locals: Any | None = None,  # noqa: A002
+        **__kwargs: Any,
+    ) -> Any | None:
+        return forward_ref._evaluate(globals, locals, type_params=type_params, recursive_guard=frozenset())  # noqa: SLF001
+else:  # pragma: no cover
+
+    def evaluate_forward_ref(
+        forward_ref: ForwardRef,
+        *,
+        globals: Any | None = None,  # noqa: A002
+        locals: Any | None = None,  # noqa: A002
+        **__kwargs: Any,
+    ) -> Any | None:
+        return forward_ref._evaluate(globals, locals, recursive_guard=frozenset())  # noqa: SLF001
+
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
@@ -218,7 +244,9 @@ def unnest_type(field_type: Any) -> list[Any]:
             field_type = None
         elif issubclass(field_type, tuple) and hasattr(field_type, "__annotations__"):
             inner_types = tuple(
-                field._evaluate(globals(), locals(), recursive_guard=frozenset())  # noqa: SLF001
+                evaluate_forward_ref(
+                    field, type_params=getattr(field_type, "__type_params__", None), globals=globals(), locals=locals()
+                )
                 if isinstance(field, ForwardRef)
                 else field
                 for field in field_type.__annotations__.values()
