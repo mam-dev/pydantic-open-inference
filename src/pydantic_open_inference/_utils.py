@@ -232,7 +232,7 @@ class IncompatibleTensorError(PydanticOpenInferenceError):
 _SIMPLE_TYPES = (bool, str, bytes, int, float)
 
 
-def unnest_type(field_type: Any) -> list[Any]:
+def unnest_type(field_type: Any, namespace: dict[str, Any]) -> list[Any]:
     unnested: list[Any] = []
     while field_type is not None:
         if (origin := get_origin(field_type)) is not None:
@@ -245,7 +245,9 @@ def unnest_type(field_type: Any) -> list[Any]:
         elif issubclass(field_type, tuple) and hasattr(field_type, "__annotations__"):
             inner_types = tuple(
                 evaluate_forward_ref(
-                    field, type_params=getattr(field_type, "__type_params__", None), globals=globals(), locals=locals()
+                    field,
+                    type_params=getattr(field_type, "__type_params__", None),
+                    globals=namespace,
                 )
                 if isinstance(field, ForwardRef)
                 else field
@@ -305,12 +307,20 @@ def _get_put_tensor_by_name(
 
 
 def validate_model_tensor(
-    model_tensor: OpenInferenceMetadataTensor,
-    local_field: pydantic.fields.FieldInfo,
     *,
+    model_metadata: OpenInferenceModelMetadata,
+    model_cls: type[pydantic.BaseModel],
+    field_name: str,
     is_input: bool,
 ) -> None:
-    unnested = unnest_type(local_field.annotation)
+    model_tensor = (
+        get_input_tensor_by_name(field_name, model_metadata)
+        if is_input
+        else get_output_tensor_by_name(field_name, model_metadata)
+    )
+    local_field = model_cls.model_fields[field_name]
+    namespace = sys.modules[model_cls.__module__].__dict__
+    unnested = unnest_type(local_field.annotation, namespace=namespace)
 
     local_shape: Shape = []
     for index, type_value in enumerate(unnested):
@@ -330,7 +340,7 @@ def validate_model_tensor(
         or any(rm not in (loc, -1) for (rm, loc) in zip(remote_shape, local_shape, strict=True))
     ):
         raise IncompatibleTensorError.for_shape_mismatch(
-            name=model_tensor["name"], local_shape=local_shape, remote_shape=remote_shape
+            name=field_name, local_shape=local_shape, remote_shape=remote_shape
         )
 
     if is_input:
@@ -339,5 +349,5 @@ def validate_model_tensor(
         remote_datatype = model_tensor["datatype"]
         if local_datatype != remote_datatype:
             raise IncompatibleTensorError.for_datatype_mismatch(
-                name=model_tensor["name"], local_datatype=local_datatype, remote_datatype=remote_datatype
+                name=field_name, local_datatype=local_datatype, remote_datatype=remote_datatype
             )

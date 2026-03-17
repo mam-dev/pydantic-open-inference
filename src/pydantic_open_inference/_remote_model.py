@@ -19,8 +19,6 @@ from ._utils import (
     OpenInferenceAPIRequestedOutput,
     get_data,
     get_datatype,
-    get_input_tensor_by_name,
-    get_output_tensor_by_name,
     get_shape,
     is_listlike,
     unflatten_data,
@@ -265,13 +263,21 @@ class RemoteModel(Generic[InputsModelT, OutputsModelT]):
             timeout_seconds=self._request_timeout_seconds,
         )
 
-        for input_name, input_field in self._inputs_model.model_fields.items():
-            input_tensor = get_input_tensor_by_name(input_name, metadata)
-            validate_model_tensor(input_tensor, input_field, is_input=True)
+        for input_name in self._inputs_model.model_fields:
+            validate_model_tensor(
+                model_metadata=metadata,
+                model_cls=self._inputs_model,
+                field_name=input_name,
+                is_input=True,
+            )
 
-        for output_name, output_field in self._outputs_model.model_fields.items():
-            output_tensor = get_output_tensor_by_name(output_name, metadata)
-            validate_model_tensor(output_tensor, output_field, is_input=False)
+        for output_name in self._outputs_model.model_fields:
+            validate_model_tensor(
+                model_metadata=metadata,
+                model_cls=self._outputs_model,
+                field_name=output_name,
+                is_input=False,
+            )
 
     def infer(self, inputs: InputsModelT) -> OutputsModelT:
         """Use the remote model for inference.
