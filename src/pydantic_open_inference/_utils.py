@@ -316,10 +316,17 @@ def validate_model_tensor(
     for index, type_value in enumerate(unnested):
         local_shape.extend(get_allowed_shape_of_type(type_value, root_level=index == 0))
     remote_shape = model_tensor["shape"]
+    # INPUT:
     # Local shape element can be anything if the corresponding remote shape element is -1,
-    # otherwise they have to match exactly.
+    # otherwise they have to match exactly. If remote accepts -1, we can locally have
+    # anything we want.
+    # OUTPUT:
+    # Shapes have to match exactly. If remote says output shape element is -1, we
+    # have to be ready to accept any number of elements, and must thus also
+    # have -1 locally.
     if local_shape != remote_shape and (
-        len(local_shape) != len(remote_shape)
+        not is_input
+        or len(local_shape) != len(remote_shape)
         or any(rm not in (loc, -1) for (rm, loc) in zip(remote_shape, local_shape, strict=True))
     ):
         raise IncompatibleTensorError.for_shape_mismatch(
