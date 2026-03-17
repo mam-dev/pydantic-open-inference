@@ -187,12 +187,12 @@ class IncompatibleTensorError(PydanticOpenInferenceError):
     """Raised when input/output of a model is incompatible with its model definition."""
 
     @classmethod
-    def for_datatype_mismatch(cls, local_datatype: Datatype, remote_datatype: Datatype) -> Self:
-        return cls(f"Datatype mismatch, {local_datatype} (local) != {remote_datatype} (remote)")
+    def for_datatype_mismatch(cls, name: str, local_datatype: Datatype, remote_datatype: Datatype) -> Self:
+        return cls(f"Datatype mismatch for {name}, {local_datatype} (local) != {remote_datatype} (remote)")
 
     @classmethod
-    def for_shape_mismatch(cls, local_shape: Shape, remote_shape: Shape) -> Self:
-        return cls(f"Shape mismatch, {local_shape} (local) != {remote_shape} (remote)")
+    def for_shape_mismatch(cls, name: str, local_shape: Shape, remote_shape: Shape) -> Self:
+        return cls(f"Shape mismatch for {name}, {local_shape} (local) != {remote_shape} (remote)")
 
     @classmethod
     def for_missing_input(cls, name: str) -> Self:
@@ -289,7 +289,9 @@ def validate_model_tensor(
         local_shape.extend(get_allowed_shape_of_type(type_value, root_level=index == 0))
     remote_shape = model_tensor["shape"]
     if local_shape != remote_shape:
-        raise IncompatibleTensorError.for_shape_mismatch(local_shape=local_shape, remote_shape=remote_shape)
+        raise IncompatibleTensorError.for_shape_mismatch(
+            name=model_tensor["name"], local_shape=local_shape, remote_shape=remote_shape
+        )
 
     if is_input:
         # The datatype we output must match the one expected by the remote
@@ -297,5 +299,5 @@ def validate_model_tensor(
         remote_datatype = model_tensor["datatype"]
         if local_datatype != remote_datatype:
             raise IncompatibleTensorError.for_datatype_mismatch(
-                local_datatype=local_datatype, remote_datatype=remote_datatype
+                name=model_tensor["name"], local_datatype=local_datatype, remote_datatype=remote_datatype
             )

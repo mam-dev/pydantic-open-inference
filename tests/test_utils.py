@@ -411,25 +411,25 @@ def test_get_output_tensor_by_name(
             {"name": "text", "datatype": "BYTES", "shape": [2]},
             _TextInput.model_fields["text"],
             True,
-            r"Shape mismatch, \[1\] \(local\) != \[2\] \(remote\)",
+            r"Shape mismatch for text, \[1\] \(local\) != \[2\] \(remote\)",
         ),
         (
             {"name": "entities", "datatype": "BYTES", "shape": [3, 4]},
             _EntityOutput.model_fields["entities"],
             False,
-            r"Shape mismatch, \[-1, 4\] \(local\) != \[3, 4\] \(remote\)",
+            r"Shape mismatch for entities, \[-1, 4\] \(local\) != \[3, 4\] \(remote\)",
         ),
         (
             {"name": "entities", "datatype": "BYTES", "shape": [-1, 4, 2]},
             _EntityOutput.model_fields["entities"],
             False,
-            r"Shape mismatch, \[-1, 4\] \(local\) != \[-1, 4, 2\] \(remote\)",
+            r"Shape mismatch for entities, \[-1, 4\] \(local\) != \[-1, 4, 2\] \(remote\)",
         ),
         (
             {"name": "text", "datatype": "FP64", "shape": [1]},
             _TextInput.model_fields["text"],
             True,
-            r"Datatype mismatch, BYTES \(local\) != FP64 \(remote\)",
+            r"Datatype mismatch for text, BYTES \(local\) != FP64 \(remote\)",
         ),
         (
             {"name": "overridden", "datatype": "FP16", "shape": [1]},
@@ -441,7 +441,7 @@ def test_get_output_tensor_by_name(
             {"name": "overridden", "datatype": "FP32", "shape": [1]},
             _EntityOutput.model_fields["overridden"],
             True,
-            r"Datatype mismatch, FP16 \(local\) != FP32 \(remote\)",
+            r"Datatype mismatch for overridden, FP16 \(local\) != FP32 \(remote\)",
         ),
     ],
 )
