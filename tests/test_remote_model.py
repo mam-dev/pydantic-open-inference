@@ -5,7 +5,7 @@ from __future__ import annotations
 import itertools
 from collections import namedtuple
 from typing import Annotated, TypeVar
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 import pytest
 
@@ -19,6 +19,9 @@ from pydantic_open_inference._utils import (
     DatatypeOverride,
     OpenInferenceAPIOutput,
     OpenInferenceAPIRequestedOutput,
+    get_input_tensor_by_name,
+    get_output_tensor_by_name,
+    validate_model_tensor,
 )
 
 
@@ -210,6 +213,52 @@ def test_remote_model_instantiate(mock_client_api_cls: Mock) -> None:
     mock_client_api_cls.assert_called_once_with(
         base_url="https://server/",
     )
+
+
+@pytest.mark.parametrize("with_version, timeout", itertools.product([True, False], [None, 3.4]))
+def test_remote_model_validate(
+    monkeypatch: pytest.MonkeyPatch, mock_client_api_cls: Mock, with_version: bool, timeout: float | None
+) -> None:
+    fake_model_name = "my_model"
+    fake_version = "1.2.3"
+    monkeypatch.setattr(
+        "pydantic_open_inference._remote_model.get_input_tensor_by_name",
+        mock_get_input_tensor := Mock(spec=get_input_tensor_by_name),
+    )
+    monkeypatch.setattr(
+        "pydantic_open_inference._remote_model.get_output_tensor_by_name",
+        mock_get_output_tensor := Mock(spec=get_output_tensor_by_name),
+    )
+    monkeypatch.setattr(
+        "pydantic_open_inference._remote_model.validate_model_tensor",
+        mock_validate_model_tensor := Mock(spec=validate_model_tensor),
+    )
+    remote_model: RemoteModel[IntTuplesInputsBaseModel, OutputsBaseModel] = RemoteModel(
+        model_name=fake_model_name,
+        model_version=fake_version if with_version else None,
+        inputs_model=IntTuplesInputsBaseModel,
+        outputs_model=IntTuplesOutputsBaseModel,
+        server_url="https://server/",
+        request_timeout_seconds=timeout,
+    )
+
+    remote_model.validate()
+
+    mock_client_api_cls.return_value.model_metadata.assert_called_once_with(
+        model_name=fake_model_name,
+        model_version=fake_version if with_version else None,
+        timeout_seconds=timeout,
+    )
+    mock_get_input_tensor.assert_called_once_with(
+        "values", mock_client_api_cls.return_value.model_metadata.return_value
+    )
+    mock_get_output_tensor.assert_called_once_with(
+        "values", mock_client_api_cls.return_value.model_metadata.return_value
+    )
+    assert mock_validate_model_tensor.mock_calls == [
+        call(mock_get_input_tensor.return_value, IntTuplesInputsBaseModel.model_fields["values"], is_input=True),
+        call(mock_get_output_tensor.return_value, IntTuplesOutputsBaseModel.model_fields["values"], is_input=False),
+    ]
 
 
 @pytest.mark.parametrize("with_version, timeout", itertools.product([True, False], [None, 3.4]))

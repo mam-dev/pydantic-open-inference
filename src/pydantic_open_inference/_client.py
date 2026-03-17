@@ -10,6 +10,7 @@ from ._utils import (
     OpenInferenceAPIInput,
     OpenInferenceAPIOutput,
     OpenInferenceAPIRequestedOutput,
+    OpenInferenceModelMetadata,
     PydanticOpenInferenceError,
     Singleton,
 )
@@ -47,6 +48,20 @@ class OpenInferenceHTTPClientAPI(metaclass=Singleton):
         if model_version is None:
             return f"v2/models/{model_name}"
         return f"v2/models/{model_name}/versions/{model_version}"
+
+    def model_metadata(
+        self, model_name: str, model_version: str | None = None, timeout_seconds: float | None = None
+    ) -> OpenInferenceModelMetadata:
+        try:
+            response = self._client.get(
+                self._get_model_url(model_name, model_version),
+                timeout=timeout_seconds,
+            ).raise_for_status()
+            return cast("OpenInferenceModelMetadata", response.json())
+        except httpx.HTTPStatusError as error:
+            raise BadStatusCodeFromServerError(
+                status_code=error.response.status_code,
+            ) from error
 
     def model_readiness(
         self, model_name: str, model_version: str | None = None, timeout_seconds: float | None = None

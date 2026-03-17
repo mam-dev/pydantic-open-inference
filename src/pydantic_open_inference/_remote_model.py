@@ -19,9 +19,12 @@ from ._utils import (
     OpenInferenceAPIRequestedOutput,
     get_data,
     get_datatype,
+    get_input_tensor_by_name,
+    get_output_tensor_by_name,
     get_shape,
     is_listlike,
     unflatten_data,
+    validate_model_tensor,
 )
 
 
@@ -228,16 +231,47 @@ class RemoteModel(Generic[InputsModelT, OutputsModelT]):
         self._model_version = model_version
         self._inputs_model = inputs_model
         self._outputs_model = outputs_model
-        self._client_API = OpenInferenceHTTPClientAPI(base_url=server_url)
+        self._client_api = OpenInferenceHTTPClientAPI(base_url=server_url)
         self._request_timeout_seconds = request_timeout_seconds
 
     def is_ready(self) -> bool:
         """Return whether the remote model is ready."""
-        return self._client_API.model_readiness(
+        return self._client_api.model_readiness(
             model_name=self._model_name,
             model_version=self._model_version,
             timeout_seconds=self._request_timeout_seconds,
         )
+
+    def validate(self) -> None:
+        """Validate this instance vs the corresponding remote model.
+
+        Request the model metadata via the API, then compare that
+        with the defined input and output model. Note that the
+        datatype of the output cannot be validated, since it allows
+        for type coercion, e.g., the model output may be a string
+        like "3.4" that gets coerced into a float, but such a scenario
+        is entirely reliant on output values, and cannot be inferred
+        from the model metadata.
+
+        Raises:
+            IncompatibleTensorError: When a field in the input
+                (output) model does not match a defined input
+                (output) tensor in the model metadata.
+
+        """
+        metadata = self._client_api.model_metadata(
+            model_name=self._model_name,
+            model_version=self._model_version,
+            timeout_seconds=self._request_timeout_seconds,
+        )
+
+        for input_name, input_field in self._inputs_model.model_fields.items():
+            input_tensor = get_input_tensor_by_name(input_name, metadata)
+            validate_model_tensor(input_tensor, input_field, is_input=True)
+
+        for output_name, output_field in self._outputs_model.model_fields.items():
+            output_tensor = get_output_tensor_by_name(output_name, metadata)
+            validate_model_tensor(output_tensor, output_field, is_input=False)
 
     def infer(self, inputs: InputsModelT) -> OutputsModelT:
         """Use the remote model for inference.
@@ -254,7 +288,7 @@ class RemoteModel(Generic[InputsModelT, OutputsModelT]):
         if not isinstance(inputs, self._inputs_model):
             raise TypeError(f"Bad inputs type: {type(inputs)}")  # noqa: TRY003
         return self._outputs_model.from_outputs(
-            self._client_API.infer(
+            self._client_api.infer(
                 model_name=self._model_name,
                 model_version=self._model_version,
                 inputs=inputs.to_inputs(),
