@@ -188,11 +188,11 @@ class IncompatibleTensorError(PydanticOpenInferenceError):
 
     @classmethod
     def for_datatype_mismatch(cls, local_datatype: Datatype, remote_datatype: Datatype) -> Self:
-        return cls(f"Datatype mismatch, {local_datatype} != {remote_datatype}")
+        return cls(f"Datatype mismatch, {local_datatype} (local) != {remote_datatype} (remote)")
 
     @classmethod
     def for_shape_mismatch(cls, local_shape: Shape, remote_shape: Shape) -> Self:
-        return cls(f"Shape mismatch, {local_shape} != {remote_shape}")
+        return cls(f"Shape mismatch, {local_shape} (local) != {remote_shape} (remote)")
 
     @classmethod
     def for_missing_input(cls, name: str) -> Self:
