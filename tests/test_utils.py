@@ -432,6 +432,12 @@ def test_get_output_tensor_by_name(
             r"Shape mismatch for entities, \[-1, 4\] \(local\) != \[-1, 4, 2\] \(remote\)",
         ),
         (
+            {"name": "entities", "datatype": "BYTES", "shape": [-1, -1]},
+            _EntityOutput.model_fields["entities"],
+            False,
+            r"Shape mismatch for entities, \[-1, 4\] \(local\) != \[-1, -1\] \(remote\)",
+        ),
+        (
             {"name": "text", "datatype": "FP64", "shape": [1]},
             _TextInput.model_fields["text"],
             True,
