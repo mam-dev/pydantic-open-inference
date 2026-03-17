@@ -19,8 +19,6 @@ from pydantic_open_inference._utils import (
     DatatypeOverride,
     OpenInferenceAPIOutput,
     OpenInferenceAPIRequestedOutput,
-    get_input_tensor_by_name,
-    get_output_tensor_by_name,
     validate_model_tensor,
 )
 
@@ -222,14 +220,6 @@ def test_remote_model_validate(
     fake_model_name = "my_model"
     fake_version = "1.2.3"
     monkeypatch.setattr(
-        "pydantic_open_inference._remote_model.get_input_tensor_by_name",
-        mock_get_input_tensor := Mock(spec=get_input_tensor_by_name),
-    )
-    monkeypatch.setattr(
-        "pydantic_open_inference._remote_model.get_output_tensor_by_name",
-        mock_get_output_tensor := Mock(spec=get_output_tensor_by_name),
-    )
-    monkeypatch.setattr(
         "pydantic_open_inference._remote_model.validate_model_tensor",
         mock_validate_model_tensor := Mock(spec=validate_model_tensor),
     )
@@ -249,15 +239,19 @@ def test_remote_model_validate(
         model_version=fake_version if with_version else None,
         timeout_seconds=timeout,
     )
-    mock_get_input_tensor.assert_called_once_with(
-        "values", mock_client_api_cls.return_value.model_metadata.return_value
-    )
-    mock_get_output_tensor.assert_called_once_with(
-        "values", mock_client_api_cls.return_value.model_metadata.return_value
-    )
     assert mock_validate_model_tensor.mock_calls == [
-        call(mock_get_input_tensor.return_value, IntTuplesInputsBaseModel.model_fields["values"], is_input=True),
-        call(mock_get_output_tensor.return_value, IntTuplesOutputsBaseModel.model_fields["values"], is_input=False),
+        call(
+            model_metadata=mock_client_api_cls.return_value.model_metadata.return_value,
+            model_cls=IntTuplesInputsBaseModel,
+            field_name="values",
+            is_input=True,
+        ),
+        call(
+            model_metadata=mock_client_api_cls.return_value.model_metadata.return_value,
+            model_cls=IntTuplesOutputsBaseModel,
+            field_name="values",
+            is_input=False,
+        ),
     ]
 
 

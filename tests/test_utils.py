@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import sys
 import types
 from typing import Annotated, Any, Literal, NamedTuple
 from unittest.mock import Mock
@@ -34,6 +35,13 @@ from pydantic_open_inference._utils import (
     unnest_type,
     validate_model_tensor,
 )
+
+if sys.version_info >= (3, 11):  # pragma: no cover
+    from enum import StrEnum
+else:  # pragma: no cover
+    from enum import Enum
+
+    class StrEnum(str, Enum): ...
 
 
 @pytest.fixture(autouse=True)
@@ -236,9 +244,13 @@ class _TextInput(pydantic.BaseModel):
     text: str
 
 
+class _EntityEnum(StrEnum):
+    ORDER_ID = "order-id"
+
+
 class _Entity(NamedTuple):
     score: float
-    label: Literal["tracking-id", "order-id"]
+    label: Literal["tracking-id", _EntityEnum.ORDER_ID]
     start: int
     end: int
 
@@ -259,12 +271,12 @@ class _EntityOutput(pydantic.BaseModel):
         (_TextInput.model_fields["text"].annotation, [str]),
         (
             _EntityOutput.model_fields["entities"].annotation,
-            [list, (float, Literal["tracking-id", "order-id"], int, int)],
+            [list, (float, Literal["tracking-id", _EntityEnum.ORDER_ID], int, int)],
         ),
     ],
 )
 def test_unnest_type(field_type: type, expected: list[type | tuple[type, ...]]) -> None:
-    assert unnest_type(field_type) == expected
+    assert unnest_type(field_type, globals()) == expected
 
 
 @pytest.mark.parametrize(
@@ -398,72 +410,143 @@ def test_get_output_tensor_by_name(
 
 
 @pytest.mark.parametrize(
-    "model_tensor, local_field, is_input, expected_error_message",
+    "model_metadata, model_cls, field_name, is_input, expected_error_message",
     [
-        ({"name": "text", "datatype": "BYTES", "shape": [1]}, _TextInput.model_fields["text"], True, None),
         (
-            {"name": "entities", "datatype": "BYTES", "shape": [-1, 4]},
-            _EntityOutput.model_fields["entities"],
+            {
+                "name": "model",
+                "platform": "",
+                "inputs": [{"name": "text", "datatype": "BYTES", "shape": [1]}],
+                "outputs": [],
+            },
+            _TextInput,
+            "text",
+            True,
+            None,
+        ),
+        (
+            {
+                "name": "model",
+                "platform": "",
+                "inputs": [],
+                "outputs": [{"name": "entities", "datatype": "BYTES", "shape": [-1, 4]}],
+            },
+            _EntityOutput,
+            "entities",
             False,
             None,
         ),
         (
-            {"name": "text", "datatype": "BYTES", "shape": [2]},
-            _TextInput.model_fields["text"],
+            {
+                "name": "model",
+                "platform": "",
+                "inputs": [{"name": "text", "datatype": "BYTES", "shape": [2]}],
+                "outputs": [],
+            },
+            _TextInput,
+            "text",
             True,
             r"Shape mismatch for text, \[1\] \(local\) != \[2\] \(remote\)",
         ),
         (
-            {"name": "text", "datatype": "BYTES", "shape": [-1]},
-            _TextInput.model_fields["text"],
+            {
+                "name": "model",
+                "platform": "",
+                "inputs": [{"name": "text", "datatype": "BYTES", "shape": [-1]}],
+                "outputs": [],
+            },
+            _TextInput,
+            "text",
             True,
             None,
         ),
         (
-            {"name": "entities", "datatype": "BYTES", "shape": [3, 4]},
-            _EntityOutput.model_fields["entities"],
+            {
+                "name": "model",
+                "platform": "",
+                "inputs": [],
+                "outputs": [{"name": "entities", "datatype": "BYTES", "shape": [3, 4]}],
+            },
+            _EntityOutput,
+            "entities",
             False,
             r"Shape mismatch for entities, \[-1, 4\] \(local\) != \[3, 4\] \(remote\)",
         ),
         (
-            {"name": "entities", "datatype": "BYTES", "shape": [-1, 4, 2]},
-            _EntityOutput.model_fields["entities"],
+            {
+                "name": "model",
+                "platform": "",
+                "inputs": [],
+                "outputs": [{"name": "entities", "datatype": "BYTES", "shape": [-1, 4, 2]}],
+            },
+            _EntityOutput,
+            "entities",
             False,
             r"Shape mismatch for entities, \[-1, 4\] \(local\) != \[-1, 4, 2\] \(remote\)",
         ),
         (
-            {"name": "entities", "datatype": "BYTES", "shape": [-1, -1]},
-            _EntityOutput.model_fields["entities"],
+            {
+                "name": "model",
+                "platform": "",
+                "inputs": [],
+                "outputs": [{"name": "entities", "datatype": "BYTES", "shape": [-1, -1]}],
+            },
+            _EntityOutput,
+            "entities",
             False,
             r"Shape mismatch for entities, \[-1, 4\] \(local\) != \[-1, -1\] \(remote\)",
         ),
         (
-            {"name": "text", "datatype": "FP64", "shape": [1]},
-            _TextInput.model_fields["text"],
+            {
+                "name": "model",
+                "platform": "",
+                "inputs": [{"name": "text", "datatype": "FP64", "shape": [1]}],
+                "outputs": [],
+            },
+            _TextInput,
+            "text",
             True,
             r"Datatype mismatch for text, BYTES \(local\) != FP64 \(remote\)",
         ),
         (
-            {"name": "overridden", "datatype": "FP16", "shape": [1]},
-            _EntityOutput.model_fields["overridden"],
+            {
+                "name": "model",
+                "platform": "",
+                "inputs": [{"name": "overridden", "datatype": "FP16", "shape": [1]}],
+                "outputs": [],
+            },
+            _EntityOutput,
+            "overridden",
             True,
             None,
         ),
         (
-            {"name": "overridden", "datatype": "FP32", "shape": [1]},
-            _EntityOutput.model_fields["overridden"],
+            {
+                "name": "model",
+                "platform": "",
+                "inputs": [{"name": "overridden", "datatype": "FP32", "shape": [1]}],
+                "outputs": [],
+            },
+            _EntityOutput,
+            "overridden",
             True,
             r"Datatype mismatch for overridden, FP16 \(local\) != FP32 \(remote\)",
         ),
     ],
 )
 def test_validate_model_tensor(
-    model_tensor: OpenInferenceMetadataTensor,
-    local_field: pydantic.fields.FieldInfo,
+    model_metadata: OpenInferenceModelMetadata,
+    model_cls: type[pydantic.BaseModel],
+    field_name: str,
     is_input: bool,
     expected_error_message: str | None,
 ) -> None:
     with contextlib.ExitStack() as ctx:
         if expected_error_message is not None:
             ctx.enter_context(pytest.raises(IncompatibleTensorError, match=expected_error_message))
-        validate_model_tensor(model_tensor, local_field, is_input=is_input)
+        validate_model_tensor(
+            model_metadata=model_metadata,
+            model_cls=model_cls,
+            field_name=field_name,
+            is_input=is_input,
+        )
