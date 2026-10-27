@@ -37,11 +37,18 @@ class OpenInferenceHTTPClientAPI(metaclass=Singleton):
     def __init__(self, base_url: str) -> None:
         if not base_url.endswith("/"):
             base_url += "/"
-        self._client = httpx.Client(
-            base_url=base_url,
-            headers={"Content-Type": "application/json"},
-        )
-        atexit.register(self._client.close)
+        self._base_url = base_url
+        self._headers = {"Content-Type": "application/json"}
+        self._sync_client: httpx.Client | None = None
+
+    def _get_sync_client(self) -> httpx.Client:
+        if self._sync_client is None:
+            self._sync_client = httpx.Client(
+                base_url=self._base_url,
+                headers=self._headers,
+            )
+            atexit.register(self._sync_client.close)
+        return self._sync_client
 
     @staticmethod
     def _get_model_url(model_name: str, model_version: str | None) -> str:
@@ -53,10 +60,14 @@ class OpenInferenceHTTPClientAPI(metaclass=Singleton):
         self, model_name: str, model_version: str | None = None, timeout_seconds: float | None = None
     ) -> OpenInferenceModelMetadata:
         try:
-            response = self._client.get(
-                self._get_model_url(model_name, model_version),
-                timeout=timeout_seconds,
-            ).raise_for_status()
+            response = (
+                self._get_sync_client()
+                .get(
+                    self._get_model_url(model_name, model_version),
+                    timeout=timeout_seconds,
+                )
+                .raise_for_status()
+            )
             return cast("OpenInferenceModelMetadata", response.json())
         except httpx.HTTPStatusError as error:
             raise BadStatusCodeFromServerError(
@@ -67,10 +78,14 @@ class OpenInferenceHTTPClientAPI(metaclass=Singleton):
         self, model_name: str, model_version: str | None = None, timeout_seconds: float | None = None
     ) -> bool:
         try:
-            response = self._client.get(
-                f"{self._get_model_url(model_name, model_version)}/ready",
-                timeout=timeout_seconds,
-            ).raise_for_status()
+            response = (
+                self._get_sync_client()
+                .get(
+                    f"{self._get_model_url(model_name, model_version)}/ready",
+                    timeout=timeout_seconds,
+                )
+                .raise_for_status()
+            )
         except httpx.HTTPStatusError:
             return False
         else:
@@ -96,11 +111,15 @@ class OpenInferenceHTTPClientAPI(metaclass=Singleton):
             payload: dict[str, list[OpenInferenceAPIInput] | list[OpenInferenceAPIRequestedOutput]] = {"inputs": inputs}
             if outputs is not None:
                 payload["outputs"] = outputs
-            response = self._client.post(
-                f"{self._get_model_url(model_name, model_version)}/infer",
-                json=payload,
-                timeout=timeout_seconds,
-            ).raise_for_status()
+            response = (
+                self._get_sync_client()
+                .post(
+                    f"{self._get_model_url(model_name, model_version)}/infer",
+                    json=payload,
+                    timeout=timeout_seconds,
+                )
+                .raise_for_status()
+            )
             return cast("list[OpenInferenceAPIOutput]", response.json().get("outputs", []))
         except httpx.HTTPStatusError as error:
             raise BadStatusCodeFromServerError(

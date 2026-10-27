@@ -40,7 +40,7 @@ def mock_httpx_client_cls(monkeypatch: pytest.MonkeyPatch) -> Mock:
 
 
 @pytest.mark.parametrize("with_trailing_slash", [True, False])
-def test_client_api_instantiation(
+def test_client_api_instantiation_and_lazy_client(
     monkeypatch: pytest.MonkeyPatch,
     mock_httpx_client_cls: Mock,
     with_trailing_slash: bool,
@@ -52,12 +52,19 @@ def test_client_api_instantiation(
     base_url = "https://server"
     if with_trailing_slash:
         base_url += "/"
-    _ = OpenInferenceHTTPClientAPI(base_url=base_url)
-    mock_httpx_client_cls.assert_called_once_with(
-        base_url="https://server/",
-        headers={"Content-Type": "application/json"},
-    )
-    mock_atexit_register.assert_called_once_with(mock_httpx_client_cls.return_value.close)
+    client = OpenInferenceHTTPClientAPI(base_url=base_url)
+
+    mock_httpx_client_cls.assert_not_called()
+    mock_atexit_register.assert_not_called()
+
+    for _ in range(2):
+        _ = client._get_sync_client()
+
+        mock_httpx_client_cls.assert_called_once_with(
+            base_url="https://server/",
+            headers={"Content-Type": "application/json"},
+        )
+        mock_atexit_register.assert_called_once_with(mock_httpx_client_cls.return_value.close)
 
 
 def test_client_api_is_singleton() -> None:
