@@ -41,6 +41,7 @@ classifiers = [
   "Development Status :: 5 - Production/Stable",
 ]
 dependencies = [
+  "asyncio-atexit>=1.0.1",
   "httpx==0.28.*",
   "more-itertools==10.* ; python_full_version < '3.13'",
   "pydantic==2.*",
@@ -51,6 +52,7 @@ dev = [
   "coverage>=7.0.0",
   "mypy>=1.18.2",
   "pytest>=9.0.0",
+  "pytest-asyncio>=1.4.1",
   "pytest-cov>=7.0.0",
   "pytest-integration>=0.2.3",
   "pytest-random-order>=1.2.0",
@@ -113,6 +115,10 @@ ignore-without-code,\
 possibly-undefined,\
 redundant-expr,\
 truthy-bool"""
+
+[[tool.mypy.overrides]]
+module = ["asyncio_atexit.*"]
+ignore_missing_imports = true
 
 [tool.pydantic-mypy]
 init_forbid_extra = true

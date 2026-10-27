@@ -5,6 +5,7 @@ import contextlib
 import json
 from typing import TYPE_CHECKING, cast
 
+import asyncio_atexit
 import httpx
 
 from ._utils import (
@@ -44,6 +45,7 @@ class OpenInferenceHTTPClientAPI(metaclass=Singleton):
         self._base_url = base_url
         self._headers = {"Content-Type": "application/json"}
         self._sync_client: httpx.Client | None = None
+        self._async_client: httpx.AsyncClient | None = None
 
     def _get_sync_client(self) -> httpx.Client:
         if self._sync_client is None:
@@ -53,6 +55,15 @@ class OpenInferenceHTTPClientAPI(metaclass=Singleton):
             )
             atexit.register(self._sync_client.close)
         return self._sync_client
+
+    def _get_async_client(self) -> httpx.AsyncClient:
+        if self._async_client is None:
+            self._async_client = httpx.AsyncClient(
+                base_url=self._base_url,
+                headers=self._headers,
+            )
+            asyncio_atexit.register(self._async_client.aclose)
+        return self._async_client
 
     @staticmethod
     def _create_infer_payload(
@@ -131,13 +142,29 @@ class OpenInferenceHTTPClientAPI(metaclass=Singleton):
         timeout_seconds: float | None = None,
     ) -> list[OpenInferenceAPIOutput]:
         with self._handle_error():
-            response = (
-                self._get_sync_client()
-                .post(
-                    self._get_infer_url(model_name, model_version),
-                    json=self._create_infer_payload(inputs, outputs),
-                    timeout=timeout_seconds,
-                )
-                .raise_for_status()
+            client = self._get_sync_client()
+            response = client.post(
+                self._get_infer_url(model_name, model_version),
+                json=self._create_infer_payload(inputs, outputs),
+                timeout=timeout_seconds,
             )
+            response.raise_for_status()
+            return cast("list[OpenInferenceAPIOutput]", response.json().get("outputs", []))
+
+    async def infer_async(
+        self,
+        model_name: str,
+        inputs: list[OpenInferenceAPIInput],
+        outputs: list[OpenInferenceAPIRequestedOutput] | None = None,
+        model_version: str | None = None,
+        timeout_seconds: float | None = None,
+    ) -> list[OpenInferenceAPIOutput]:
+        with self._handle_error():
+            client = self._get_async_client()
+            response = await client.post(
+                self._get_infer_url(model_name, model_version),
+                json=self._create_infer_payload(inputs, outputs),
+                timeout=timeout_seconds,
+            )
+            response.raise_for_status()
             return cast("list[OpenInferenceAPIOutput]", response.json().get("outputs", []))
