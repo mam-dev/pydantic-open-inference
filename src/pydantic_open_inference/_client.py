@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import atexit
+import contextlib
 import json
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import httpx
 
@@ -14,6 +15,9 @@ from ._utils import (
     PydanticOpenInferenceError,
     Singleton,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 
 class OpenInferenceHTTPClientAPIError(PydanticOpenInferenceError):
@@ -51,15 +55,38 @@ class OpenInferenceHTTPClientAPI(metaclass=Singleton):
         return self._sync_client
 
     @staticmethod
+    def _create_infer_payload(
+        inputs: list[OpenInferenceAPIInput], outputs: list[OpenInferenceAPIRequestedOutput] | None = None
+    ) -> dict[str, list[OpenInferenceAPIInput] | list[OpenInferenceAPIRequestedOutput]]:
+        payload: dict[str, list[OpenInferenceAPIInput] | list[OpenInferenceAPIRequestedOutput]] = {"inputs": inputs}
+        if outputs is not None:
+            payload["outputs"] = outputs
+        return payload
+
+    @staticmethod
     def _get_model_url(model_name: str, model_version: str | None) -> str:
         if model_version is None:
             return f"v2/models/{model_name}"
         return f"v2/models/{model_name}/versions/{model_version}"
 
+    def _get_infer_url(self, model_name: str, model_version: str | None) -> str:
+        return f"{self._get_model_url(model_name, model_version)}/infer"
+
+    @contextlib.contextmanager
+    def _handle_error(self) -> Generator[None]:
+        try:
+            yield
+        except httpx.HTTPStatusError as error:
+            raise BadStatusCodeFromServerError(
+                status_code=error.response.status_code,
+            ) from error
+        except (httpx.HTTPError, json.JSONDecodeError) as error:
+            raise OpenInferenceHTTPClientAPIError(error) from error
+
     def model_metadata(
         self, model_name: str, model_version: str | None = None, timeout_seconds: float | None = None
     ) -> OpenInferenceModelMetadata:
-        try:
+        with self._handle_error():
             response = (
                 self._get_sync_client()
                 .get(
@@ -69,10 +96,6 @@ class OpenInferenceHTTPClientAPI(metaclass=Singleton):
                 .raise_for_status()
             )
             return cast("OpenInferenceModelMetadata", response.json())
-        except httpx.HTTPStatusError as error:
-            raise BadStatusCodeFromServerError(
-                status_code=error.response.status_code,
-            ) from error
 
     def model_readiness(
         self, model_name: str, model_version: str | None = None, timeout_seconds: float | None = None
@@ -107,23 +130,14 @@ class OpenInferenceHTTPClientAPI(metaclass=Singleton):
         model_version: str | None = None,
         timeout_seconds: float | None = None,
     ) -> list[OpenInferenceAPIOutput]:
-        try:
-            payload: dict[str, list[OpenInferenceAPIInput] | list[OpenInferenceAPIRequestedOutput]] = {"inputs": inputs}
-            if outputs is not None:
-                payload["outputs"] = outputs
+        with self._handle_error():
             response = (
                 self._get_sync_client()
                 .post(
-                    f"{self._get_model_url(model_name, model_version)}/infer",
-                    json=payload,
+                    self._get_infer_url(model_name, model_version),
+                    json=self._create_infer_payload(inputs, outputs),
                     timeout=timeout_seconds,
                 )
                 .raise_for_status()
             )
             return cast("list[OpenInferenceAPIOutput]", response.json().get("outputs", []))
-        except httpx.HTTPStatusError as error:
-            raise BadStatusCodeFromServerError(
-                status_code=error.response.status_code,
-            ) from error
-        except (httpx.HTTPError, json.JSONDecodeError) as error:
-            raise OpenInferenceHTTPClientAPIError(error) from error
