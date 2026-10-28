@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import atexit
+import contextlib
 import json
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
+import asyncio_atexit
 import httpx
 
 from ._utils import (
@@ -14,6 +16,9 @@ from ._utils import (
     PydanticOpenInferenceError,
     Singleton,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 
 class OpenInferenceHTTPClientAPIError(PydanticOpenInferenceError):
@@ -37,11 +42,37 @@ class OpenInferenceHTTPClientAPI(metaclass=Singleton):
     def __init__(self, base_url: str) -> None:
         if not base_url.endswith("/"):
             base_url += "/"
-        self._client = httpx.Client(
-            base_url=base_url,
-            headers={"Content-Type": "application/json"},
-        )
-        atexit.register(self._client.close)
+        self._base_url = base_url
+        self._headers = {"Content-Type": "application/json"}
+        self._sync_client: httpx.Client | None = None
+        self._async_client: httpx.AsyncClient | None = None
+
+    def _get_sync_client(self) -> httpx.Client:
+        if self._sync_client is None:
+            self._sync_client = httpx.Client(
+                base_url=self._base_url,
+                headers=self._headers,
+            )
+            atexit.register(self._sync_client.close)
+        return self._sync_client
+
+    def _get_async_client(self) -> httpx.AsyncClient:
+        if self._async_client is None:
+            self._async_client = httpx.AsyncClient(
+                base_url=self._base_url,
+                headers=self._headers,
+            )
+            asyncio_atexit.register(self._async_client.aclose)
+        return self._async_client
+
+    @staticmethod
+    def _create_infer_payload(
+        inputs: list[OpenInferenceAPIInput], outputs: list[OpenInferenceAPIRequestedOutput] | None = None
+    ) -> dict[str, list[OpenInferenceAPIInput] | list[OpenInferenceAPIRequestedOutput]]:
+        payload: dict[str, list[OpenInferenceAPIInput] | list[OpenInferenceAPIRequestedOutput]] = {"inputs": inputs}
+        if outputs is not None:
+            payload["outputs"] = outputs
+        return payload
 
     @staticmethod
     def _get_model_url(model_name: str, model_version: str | None) -> str:
@@ -49,28 +80,24 @@ class OpenInferenceHTTPClientAPI(metaclass=Singleton):
             return f"v2/models/{model_name}"
         return f"v2/models/{model_name}/versions/{model_version}"
 
-    def model_metadata(
-        self, model_name: str, model_version: str | None = None, timeout_seconds: float | None = None
-    ) -> OpenInferenceModelMetadata:
+    def _get_infer_url(self, model_name: str, model_version: str | None) -> str:
+        return f"{self._get_model_url(model_name, model_version)}/infer"
+
+    @contextlib.contextmanager
+    def _handle_error(self) -> Generator[None]:
         try:
-            response = self._client.get(
-                self._get_model_url(model_name, model_version),
-                timeout=timeout_seconds,
-            ).raise_for_status()
-            return cast("OpenInferenceModelMetadata", response.json())
+            yield
         except httpx.HTTPStatusError as error:
             raise BadStatusCodeFromServerError(
                 status_code=error.response.status_code,
             ) from error
+        except (httpx.HTTPError, json.JSONDecodeError) as error:
+            raise OpenInferenceHTTPClientAPIError(error) from error
 
-    def model_readiness(
-        self, model_name: str, model_version: str | None = None, timeout_seconds: float | None = None
-    ) -> bool:
+    @staticmethod
+    def _process_readiness_response(response: httpx.Response) -> bool:
         try:
-            response = self._client.get(
-                f"{self._get_model_url(model_name, model_version)}/ready",
-                timeout=timeout_seconds,
-            ).raise_for_status()
+            response.raise_for_status()
         except httpx.HTTPStatusError:
             return False
         else:
@@ -84,6 +111,50 @@ class OpenInferenceHTTPClientAPI(metaclass=Singleton):
             # so the readiness is in the "Model Ready Response JSON Object"
             return cast("bool", response.json().get("ready", False))
 
+    def model_metadata(
+        self, model_name: str, model_version: str | None = None, timeout_seconds: float | None = None
+    ) -> OpenInferenceModelMetadata:
+        with self._handle_error():
+            client = self._get_sync_client()
+            response = client.get(
+                self._get_model_url(model_name, model_version),
+                timeout=timeout_seconds,
+            )
+            response.raise_for_status()
+            return cast("OpenInferenceModelMetadata", response.json())
+
+    async def model_metadata_async(
+        self, model_name: str, model_version: str | None = None, timeout_seconds: float | None = None
+    ) -> OpenInferenceModelMetadata:
+        with self._handle_error():
+            client = self._get_async_client()
+            response = await client.get(
+                self._get_model_url(model_name, model_version),
+                timeout=timeout_seconds,
+            )
+            response.raise_for_status()
+            return cast("OpenInferenceModelMetadata", response.json())
+
+    def model_readiness(
+        self, model_name: str, model_version: str | None = None, timeout_seconds: float | None = None
+    ) -> bool:
+        client = self._get_sync_client()
+        response = client.get(
+            f"{self._get_model_url(model_name, model_version)}/ready",
+            timeout=timeout_seconds,
+        )
+        return self._process_readiness_response(response)
+
+    async def model_readiness_async(
+        self, model_name: str, model_version: str | None = None, timeout_seconds: float | None = None
+    ) -> bool:
+        client = self._get_async_client()
+        response = await client.get(
+            f"{self._get_model_url(model_name, model_version)}/ready",
+            timeout=timeout_seconds,
+        )
+        return self._process_readiness_response(response)
+
     def infer(
         self,
         model_name: str,
@@ -92,19 +163,30 @@ class OpenInferenceHTTPClientAPI(metaclass=Singleton):
         model_version: str | None = None,
         timeout_seconds: float | None = None,
     ) -> list[OpenInferenceAPIOutput]:
-        try:
-            payload: dict[str, list[OpenInferenceAPIInput] | list[OpenInferenceAPIRequestedOutput]] = {"inputs": inputs}
-            if outputs is not None:
-                payload["outputs"] = outputs
-            response = self._client.post(
-                f"{self._get_model_url(model_name, model_version)}/infer",
-                json=payload,
+        with self._handle_error():
+            client = self._get_sync_client()
+            response = client.post(
+                self._get_infer_url(model_name, model_version),
+                json=self._create_infer_payload(inputs, outputs),
                 timeout=timeout_seconds,
-            ).raise_for_status()
+            )
+            response.raise_for_status()
             return cast("list[OpenInferenceAPIOutput]", response.json().get("outputs", []))
-        except httpx.HTTPStatusError as error:
-            raise BadStatusCodeFromServerError(
-                status_code=error.response.status_code,
-            ) from error
-        except (httpx.HTTPError, json.JSONDecodeError) as error:
-            raise OpenInferenceHTTPClientAPIError(error) from error
+
+    async def infer_async(
+        self,
+        model_name: str,
+        inputs: list[OpenInferenceAPIInput],
+        outputs: list[OpenInferenceAPIRequestedOutput] | None = None,
+        model_version: str | None = None,
+        timeout_seconds: float | None = None,
+    ) -> list[OpenInferenceAPIOutput]:
+        with self._handle_error():
+            client = self._get_async_client()
+            response = await client.post(
+                self._get_infer_url(model_name, model_version),
+                json=self._create_infer_payload(inputs, outputs),
+                timeout=timeout_seconds,
+            )
+            response.raise_for_status()
+            return cast("list[OpenInferenceAPIOutput]", response.json().get("outputs", []))
