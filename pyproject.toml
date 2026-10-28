@@ -6,7 +6,7 @@ authors = [{ name = "Anton Vikström" }]
 license = "MIT"
 license-files = ["LICENSE"]
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 keywords = [
   "pydantic",
   "open inference",
@@ -21,11 +21,11 @@ classifiers = [
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
   "Operating System :: OS Independent",
   "Typing :: Typed",
   "Intended Audience :: Science/Research",
@@ -45,19 +45,19 @@ dependencies = [
   "httpx==0.28.*",
   "more-itertools==10.* ; python_full_version < '3.13'",
   "pydantic==2.*",
+  "typing-extensions>=4.16.0 ; python_full_version < '3.15'",
 ]
 
 [dependency-groups]
 dev = [
   "coverage>=7.0.0",
-  "mypy>=1.18.2",
+  "mypy>=2.4.0",
   "pytest>=9.0.0",
   "pytest-asyncio>=1.4.1",
   "pytest-cov>=7.0.0",
   "pytest-integration>=0.2.3",
   "pytest-random-order>=1.2.0",
-  "ruff>=0.14.4",
-  "typing-extensions>=4.15.0 ; python_full_version < '3.12'",
+  "ruff>=0.17.0",
 ]
 
 [build-system]
@@ -125,7 +125,6 @@ ignore_missing_imports = true
 init_forbid_extra = true
 init_typed = true
 warn_required_dynamic_aliases = true
-warn_untyped_fields = true
 
 [tool.ruff]
 line-length = 120
@@ -173,6 +172,9 @@ select = [
   "PD",  # pandas-vet
   "PERF",  # Perflint
 ]
+ignore = [
+  "ASYNC109",
+]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
@@ -182,6 +184,7 @@ select = [
   "SLF001",  # private member access
   "PLR2004",  # magic-value compare
   "PLR0913",  # too many args
+  "PLR0917",  # too many args
   "ARG001",  # unused arg
   "S101",  # use of 'assert'
 ]

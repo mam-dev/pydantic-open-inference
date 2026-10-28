@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import namedtuple
-from typing import Annotated, TypeVar
+from typing import Annotated, List, TypeVar  # noqa: UP035
 from unittest.mock import AsyncMock, Mock, call
 
 import pytest
@@ -33,8 +33,20 @@ class NamedTuplesOutputsBaseModel(OutputsBaseModel):
     values: list[Point]
 
 
+class StringTypedNamedTuplesOutputsBaseModel(OutputsBaseModel):
+    values: "list[Point]"  # noqa: UP037
+
+
+class LegacyTypedNamedTuplesOutputsBaseModel(OutputsBaseModel):
+    values: List[Point]  # noqa: UP006
+
+
 class SingleStringOutputsBaseModel(OutputsBaseModel):
     text: str
+
+
+class StringsOutputsBaseModel(OutputsBaseModel):
+    texts: list[str]
 
 
 OutputsModelT = TypeVar("OutputsModelT", bound=OutputsBaseModel)
@@ -73,6 +85,18 @@ _FAKE_SERVER_URL = "https://server/"
             id="namedtuple",
         ),
         pytest.param(
+            StringTypedNamedTuplesOutputsBaseModel,
+            [{"name": "values", "shape": [2, 2], "data": [[1, 2], [3, 4]]}],
+            StringTypedNamedTuplesOutputsBaseModel(values=[Point(x=1, y=2), Point(x=3, y=4)]),
+            id="namedtuple-string-typed",
+        ),
+        pytest.param(
+            LegacyTypedNamedTuplesOutputsBaseModel,
+            [{"name": "values", "shape": [2, 2], "data": [[1, 2], [3, 4]]}],
+            LegacyTypedNamedTuplesOutputsBaseModel(values=[Point(x=1, y=2), Point(x=3, y=4)]),
+            id="namedtuple-legacy-typed",
+        ),
+        pytest.param(
             SingleStringOutputsBaseModel,
             [
                 {
@@ -84,6 +108,32 @@ _FAKE_SERVER_URL = "https://server/"
             ],
             SingleStringOutputsBaseModel(text="hello world"),
             id="string",
+        ),
+        pytest.param(
+            StringsOutputsBaseModel,
+            [
+                {
+                    "name": "texts",
+                    "datatype": "BYTES",
+                    "shape": [1],
+                    "data": ["hello world"],
+                }
+            ],
+            StringsOutputsBaseModel(texts=["hello world"]),
+            id="strings-length-1",
+        ),
+        pytest.param(
+            StringsOutputsBaseModel,
+            [
+                {
+                    "name": "texts",
+                    "datatype": "BYTES",
+                    "shape": [2],
+                    "data": ["hello", "world"],
+                }
+            ],
+            StringsOutputsBaseModel(texts=["hello", "world"]),
+            id="strings-length-2",
         ),
     ],
 )

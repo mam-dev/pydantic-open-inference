@@ -3,12 +3,26 @@ from __future__ import annotations
 import itertools
 import sys
 import types
-from typing import TYPE_CHECKING, Any, ClassVar, Final, ForwardRef, Literal, TypedDict, get_args, get_origin
+from typing import (  # noqa: UP035
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Final,
+    ForwardRef,
+    List,
+    Literal,
+    NotRequired,
+    Self,
+    Tuple,
+    TypedDict,
+    get_args,
+    get_origin,
+)
 
-if sys.version_info < (3, 11):
-    from typing_extensions import NotRequired, Self  # pragma: no cover
+if sys.version_info < (3, 15):
+    pass  # pragma: no cover
 else:
-    from typing import NotRequired, Self  # pragma: no cover
+    pass  # pragma: no cover
 
 if sys.version_info < (3, 12):
     from typing_extensions import override  # pragma: no cover
@@ -128,12 +142,26 @@ def parse_row_major_order(shape: Shape, data: list[Any]) -> list[Any]:
     return parse_row_major_order(new_shape, list(batched(data, n=shape[-1], strict=True)))
 
 
-def is_listlike(annotation: type[Any] | None) -> bool:
+def is_listlike(annotation: Any) -> bool:
     if annotation is None:
         return False
+
+    annotation_string: str | None = None
+    if isinstance(annotation, str):
+        annotation_string = annotation
+    elif isinstance(annotation, ForwardRef):
+        annotation_string = annotation.__forward_arg__
+
+    if annotation_string is not None:
+        return any(x in annotation_string for x in ("list", "tuple", "List", "Tuple"))
+
     if isinstance(annotation, types.GenericAlias):
-        annotation = annotation.__origin__  # type: ignore[unreachable]
-    return any(t in (list, tuple) for t in itertools.chain((annotation,), annotation.__bases__))
+        annotation = annotation.__origin__
+
+    return any(
+        t in (list, tuple, List, Tuple)  # noqa: UP006
+        for t in itertools.chain((annotation,), getattr(annotation, "__bases__", ()))
+    )
 
 
 def unflatten_data(shape: Shape, data: Data) -> Data:

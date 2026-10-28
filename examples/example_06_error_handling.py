@@ -1,14 +1,6 @@
 """Example: error handling."""
 
-import sys
-
-if sys.version_info < (3, 11):  # pragma: no cover
-    from enum import Enum
-
-    class StrEnum(str, Enum):
-        """Replacement for enum.StrEnum, introduced in 3.11."""
-else:  # pragma: no cover
-    from enum import StrEnum
+from enum import StrEnum
 
 from pydantic import Field
 
