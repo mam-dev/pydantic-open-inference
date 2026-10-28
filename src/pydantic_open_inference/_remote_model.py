@@ -240,6 +240,14 @@ class RemoteModel(Generic[InputsModelT, OutputsModelT]):
             timeout_seconds=self._request_timeout_seconds,
         )
 
+    async def is_ready_async(self) -> bool:
+        """Return whether the remote model is ready."""
+        return await self._client_api.model_readiness_async(
+            model_name=self._model_name,
+            model_version=self._model_version,
+            timeout_seconds=self._request_timeout_seconds,
+        )
+
     def validate(self) -> None:
         """Validate this instance vs the corresponding remote model.
 

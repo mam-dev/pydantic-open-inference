@@ -5,7 +5,7 @@ from __future__ import annotations
 import itertools
 from collections import namedtuple
 from typing import Annotated, TypeVar
-from unittest.mock import Mock, call
+from unittest.mock import AsyncMock, Mock, call
 
 import pytest
 
@@ -198,6 +198,7 @@ def mock_client_api_cls(monkeypatch: pytest.MonkeyPatch) -> Mock:
         "pydantic_open_inference._remote_model.OpenInferenceHTTPClientAPI",
         mock_api_cls := Mock(spec=OpenInferenceHTTPClientAPI),
     )
+    mock_api_cls.return_value.model_readiness_async = AsyncMock()
     return mock_api_cls
 
 
@@ -255,13 +256,18 @@ def test_remote_model_validate(
     ]
 
 
-@pytest.mark.parametrize("with_version, timeout", itertools.product([True, False], [None, 3.4]))
+_FAKE_MODEL_NAME = "my_model"
+_FAKE_MODEL_VERSION = "1.2.3"
+
+
+@pytest.mark.parametrize(
+    "with_version", [pytest.param(True, id="with-version"), pytest.param(False, id="without-version")]
+)
+@pytest.mark.parametrize("timeout", [pytest.param(None, id="no-timeout"), pytest.param(3.4, id="with-timeout")])
 def test_remote_model_is_ready(mock_client_api_cls: Mock, with_version: bool, timeout: float | None) -> None:
-    fake_model_name = "my_model"
-    fake_version = "1.2.3"
     remote_model: RemoteModel[IntTuplesInputsBaseModel, OutputsBaseModel] = RemoteModel(
-        model_name=fake_model_name,
-        model_version=fake_version if with_version else None,
+        model_name=_FAKE_MODEL_NAME,
+        model_version=_FAKE_MODEL_VERSION if with_version else None,
         inputs_model=IntTuplesInputsBaseModel,
         outputs_model=Mock(spec=OutputsBaseModel),
         server_url="https://server/",
@@ -270,13 +276,41 @@ def test_remote_model_is_ready(mock_client_api_cls: Mock, with_version: bool, ti
     actual = remote_model.is_ready()
     assert actual == mock_client_api_cls.return_value.model_readiness.return_value
     mock_client_api_cls.return_value.model_readiness.assert_called_once_with(
-        model_name=fake_model_name,
-        model_version=fake_version if with_version else None,
+        model_name=_FAKE_MODEL_NAME,
+        model_version=_FAKE_MODEL_VERSION if with_version else None,
         timeout_seconds=timeout,
     )
 
 
-@pytest.mark.parametrize("with_version, timeout", itertools.product([False, True], [None, 4.5]))
+@pytest.mark.parametrize(
+    "with_version", [pytest.param(True, id="with-version"), pytest.param(False, id="without-version")]
+)
+@pytest.mark.parametrize("timeout", [pytest.param(None, id="no-timeout"), pytest.param(3.4, id="with-timeout")])
+@pytest.mark.asyncio
+async def test_remote_model_is_ready_async(
+    mock_client_api_cls: Mock, with_version: bool, timeout: float | None
+) -> None:
+    remote_model: RemoteModel[IntTuplesInputsBaseModel, OutputsBaseModel] = RemoteModel(
+        model_name=_FAKE_MODEL_NAME,
+        model_version=_FAKE_MODEL_VERSION if with_version else None,
+        inputs_model=IntTuplesInputsBaseModel,
+        outputs_model=Mock(spec=OutputsBaseModel),
+        server_url="https://server/",
+        request_timeout_seconds=timeout,
+    )
+    actual = await remote_model.is_ready_async()
+    assert actual == mock_client_api_cls.return_value.model_readiness_async.return_value
+    mock_client_api_cls.return_value.model_readiness_async.assert_awaited_once_with(
+        model_name=_FAKE_MODEL_NAME,
+        model_version=_FAKE_MODEL_VERSION if with_version else None,
+        timeout_seconds=timeout,
+    )
+
+
+@pytest.mark.parametrize(
+    "with_version", [pytest.param(True, id="with-version"), pytest.param(False, id="without-version")]
+)
+@pytest.mark.parametrize("timeout", [pytest.param(None, id="no-timeout"), pytest.param(4.5, id="with-timeout")])
 def test_remote_model_infer(mock_client_api_cls: Mock, with_version: bool, timeout: float | None) -> None:
     fake_model_name = "my_model"
     fake_version = "1.2.3"
