@@ -200,7 +200,7 @@ class RemoteModel(Generic[InputsModelT, OutputsModelT]):
     handling conversion between the inputs/outputs models and
     the Open Inference protocol.
 
-    This class is designed to be thread-safe.
+    The *non-async* methods of this class are designed to be thread-safe.
 
     """
 
