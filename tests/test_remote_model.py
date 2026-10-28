@@ -204,6 +204,7 @@ def mock_client_api_cls(monkeypatch: pytest.MonkeyPatch) -> Mock:
     )
     mock_api_cls.return_value.model_readiness_async = AsyncMock()
     mock_api_cls.return_value.model_metadata_async = AsyncMock()
+    mock_api_cls.return_value.infer_async = AsyncMock()
     return mock_api_cls
 
 
@@ -381,6 +382,35 @@ def test_remote_model_infer(mock_client_api_cls: Mock, with_version: bool, timeo
     mock_outputs_model.from_outputs.assert_called_once_with(mock_client_api_cls.return_value.infer.return_value)
 
 
+@pytest.mark.parametrize(
+    "with_version", [pytest.param(True, id="with-version"), pytest.param(False, id="without-version")]
+)
+@pytest.mark.parametrize("timeout", [pytest.param(None, id="no-timeout"), pytest.param(4.5, id="with-timeout")])
+@pytest.mark.asyncio
+async def test_remote_model_infer_async(mock_client_api_cls: Mock, with_version: bool, timeout: float | None) -> None:
+    fake_model_name = "my_model"
+    fake_version = "1.2.3"
+    mock_outputs_model = Mock(spec=OutputsBaseModel)
+    remote_model: RemoteModel[IntTuplesInputsBaseModel, OutputsBaseModel] = RemoteModel(
+        model_name=fake_model_name,
+        model_version=fake_version if with_version else None,
+        inputs_model=IntTuplesInputsBaseModel,
+        outputs_model=mock_outputs_model,
+        server_url=_FAKE_SERVER_URL,
+        request_timeout_seconds=timeout,
+    )
+    actual = await remote_model.infer_async(mock_inputs := Mock(spec=IntTuplesInputsBaseModel))
+    mock_client_api_cls.return_value.infer_async.assert_awaited_once_with(
+        model_name=fake_model_name,
+        model_version=fake_version if with_version else None,
+        inputs=mock_inputs.to_inputs.return_value,
+        outputs=mock_outputs_model.get_requested_outputs.return_value,
+        timeout_seconds=timeout,
+    )
+    assert actual == mock_outputs_model.from_outputs.return_value
+    mock_outputs_model.from_outputs.assert_called_once_with(mock_client_api_cls.return_value.infer_async.return_value)
+
+
 def test_remote_model_infer__wrong_type(mock_client_api_cls: Mock) -> None:
     mock_outputs_model = Mock(spec=OutputsBaseModel)
     remote_model: RemoteModel[IntTuplesInputsBaseModel, OutputsBaseModel] = RemoteModel(
@@ -393,3 +423,18 @@ def test_remote_model_infer__wrong_type(mock_client_api_cls: Mock) -> None:
     with pytest.raises(TypeError):
         _ = remote_model.infer(bad_input)  # type: ignore[arg-type]
     mock_client_api_cls.return_value.infer.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_remote_model_infer_async__wrong_type(mock_client_api_cls: Mock) -> None:
+    mock_outputs_model = Mock(spec=OutputsBaseModel)
+    remote_model: RemoteModel[IntTuplesInputsBaseModel, OutputsBaseModel] = RemoteModel(
+        model_name="my_model",
+        inputs_model=IntTuplesInputsBaseModel,
+        outputs_model=mock_outputs_model,
+        server_url=_FAKE_SERVER_URL,
+    )
+    bad_input = NamedTuplesInputsBaseModel(values=[Point(x=1, y=2)])
+    with pytest.raises(TypeError):
+        _ = await remote_model.infer_async(bad_input)  # type: ignore[arg-type]
+    mock_client_api_cls.return_value.infer_async.assert_not_awaited()

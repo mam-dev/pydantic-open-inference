@@ -310,6 +310,24 @@ class RemoteModel(Generic[InputsModelT, OutputsModelT]):
             )
         )
 
+    async def infer_async(self, inputs: InputsModelT) -> OutputsModelT:
+        """Use the remote model for inference.
+
+        See "infer" for further documentation.
+
+        """
+        if not isinstance(inputs, self._inputs_model):
+            raise TypeError(f"Bad inputs type: {type(inputs)}")  # noqa: TRY003
+        return self._outputs_model.from_outputs(
+            await self._client_api.infer_async(
+                model_name=self._model_name,
+                model_version=self._model_version,
+                inputs=inputs.to_inputs(),
+                outputs=self._outputs_model.get_requested_outputs(),
+                timeout_seconds=self._request_timeout_seconds,
+            )
+        )
+
     def _validate_model_metadata(self, metadata: OpenInferenceModelMetadata) -> None:
         for input_name in self._inputs_model.model_fields:
             validate_model_tensor(
