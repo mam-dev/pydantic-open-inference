@@ -101,7 +101,7 @@ def test_client_api_is_singleton() -> None:
 
 @pytest.mark.parametrize(
     "model_version, response, timeout, expected",
-    [
+    METADATA_PARAMETERS := [
         (
             None,
             httpx.Response(
@@ -157,6 +157,34 @@ def test_client_api_model_metadata(
     if not isinstance(expected, BadStatusCodeFromServerError):
         assert actual == expected
     mock_httpx_client_cls.return_value.get.assert_called_once_with(
+        "v2/models/my_model" if model_version is None else f"v2/models/my_model/versions/{model_version}",
+        timeout=timeout,
+    )
+
+
+@pytest.mark.parametrize("model_version, response, timeout, expected", METADATA_PARAMETERS)
+@pytest.mark.asyncio
+async def test_client_api_model_metadata_async(
+    mock_httpx_async_client_cls: Mock,
+    model_version: str | None,
+    response: httpx.Response,
+    timeout: float | None,
+    expected: OpenInferenceModelMetadata | BadStatusCodeFromServerError,
+) -> None:
+    response.request = Mock(spec=httpx.Request, url="http://some/url")
+    mock_httpx_async_client_cls.return_value.get.return_value = response
+    api = OpenInferenceHTTPClientAPI(base_url="https://server/")
+    with contextlib.ExitStack() as ctx:
+        if isinstance(expected, BadStatusCodeFromServerError):
+            ctx.enter_context(pytest.raises(BadStatusCodeFromServerError, match=rf"{response.status_code}"))
+        actual = await api.model_metadata_async(
+            "my_model",
+            model_version=model_version,
+            timeout_seconds=timeout,
+        )
+    if not isinstance(expected, BadStatusCodeFromServerError):
+        assert actual == expected
+    mock_httpx_async_client_cls.return_value.get.assert_awaited_once_with(
         "v2/models/my_model" if model_version is None else f"v2/models/my_model/versions/{model_version}",
         timeout=timeout,
     )

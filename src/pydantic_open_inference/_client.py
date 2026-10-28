@@ -115,14 +115,24 @@ class OpenInferenceHTTPClientAPI(metaclass=Singleton):
         self, model_name: str, model_version: str | None = None, timeout_seconds: float | None = None
     ) -> OpenInferenceModelMetadata:
         with self._handle_error():
-            response = (
-                self._get_sync_client()
-                .get(
-                    self._get_model_url(model_name, model_version),
-                    timeout=timeout_seconds,
-                )
-                .raise_for_status()
+            client = self._get_sync_client()
+            response = client.get(
+                self._get_model_url(model_name, model_version),
+                timeout=timeout_seconds,
             )
+            response.raise_for_status()
+            return cast("OpenInferenceModelMetadata", response.json())
+
+    async def model_metadata_async(
+        self, model_name: str, model_version: str | None = None, timeout_seconds: float | None = None
+    ) -> OpenInferenceModelMetadata:
+        with self._handle_error():
+            client = self._get_async_client()
+            response = await client.get(
+                self._get_model_url(model_name, model_version),
+                timeout=timeout_seconds,
+            )
+            response.raise_for_status()
             return cast("OpenInferenceModelMetadata", response.json())
 
     def model_readiness(
