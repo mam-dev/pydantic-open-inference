@@ -3,9 +3,18 @@
 from __future__ import annotations
 
 import contextlib
-import sys
 import types
-from typing import Annotated, Any, Literal, NamedTuple
+from enum import StrEnum
+from typing import (  # noqa: UP035
+    Annotated,
+    Any,
+    Dict,
+    ForwardRef,
+    List,
+    Literal,
+    NamedTuple,
+    Tuple,
+)
 from unittest.mock import Mock
 
 import pydantic
@@ -35,13 +44,6 @@ from pydantic_open_inference._utils import (
     unnest_type,
     validate_model_tensor,
 )
-
-if sys.version_info >= (3, 11):  # pragma: no cover
-    from enum import StrEnum
-else:  # pragma: no cover
-    from enum import Enum
-
-    class StrEnum(str, Enum): ...
 
 
 @pytest.fixture(autouse=True)
@@ -127,19 +129,27 @@ class ListSubClass(list[Any]): ...
 @pytest.mark.parametrize(
     "annotation, expected",
     [
-        (None, False),
-        (list, True),
-        (tuple, True),
-        (int, False),
-        (float, False),
-        (str, False),
-        (dict, False),
-        (types.GenericAlias(dict, (str, int)), False),
-        (types.GenericAlias(list, (int,)), True),
-        (ListSubClass, True),
+        pytest.param(None, False, id="none"),
+        pytest.param(list, True, id="list"),
+        pytest.param(tuple, True, id="tuple"),
+        pytest.param(int, False, id="int"),
+        pytest.param(float, False, id="float"),
+        pytest.param(str, False, id="str"),
+        pytest.param(dict, False, id="dict"),
+        pytest.param(types.GenericAlias(dict, (str, int)), False, id="generic-alias-dict"),
+        pytest.param(types.GenericAlias(list, (int,)), True, id="generic-alias-list"),
+        pytest.param(types.GenericAlias(Dict, (str, int)), False, id="generic-alias-Dict"),  # noqa: UP006
+        pytest.param(types.GenericAlias(List, (int,)), True, id="List-of-int"),  # noqa: UP006
+        pytest.param(ListSubClass, True, id="list-subclass"),
+        pytest.param("list", True, id="list-string"),
+        pytest.param(List, True, id="List"),  # noqa: UP006
+        pytest.param(Tuple, True, id="Tuple"),  # noqa: UP006
+        pytest.param(ForwardRef("str"), False, id="forward-ref-str"),
+        pytest.param(ForwardRef("list[str]"), True, id="forward-ref-list-of-str"),
+        pytest.param(ForwardRef("List[str]"), True, id="forward-ref-List-of-str"),
     ],
 )
-def test_is_listlike(annotation: type[Any], expected: bool) -> None:
+def test_is_listlike(annotation: Any, expected: bool) -> None:
     assert is_listlike(annotation) is expected
 
 
@@ -263,15 +273,20 @@ class _EntityOutput(pydantic.BaseModel):
 @pytest.mark.parametrize(
     "field_type, expected",
     [
-        (str, [str]),
-        (int, [int]),
-        (types.GenericAlias(list, (int,)), [list, int]),
-        (types.GenericAlias(list, (types.GenericAlias(tuple, (str, int)),)), [list, tuple, (str, int)]),
-        (_PersonTuple, [(str, int)]),
-        (_TextInput.model_fields["text"].annotation, [str]),
-        (
+        pytest.param(str, [str], id="str"),
+        pytest.param(int, [int], id="int"),
+        pytest.param(types.GenericAlias(list, (int,)), [list, int], id="list-of-int"),
+        pytest.param(
+            types.GenericAlias(list, (types.GenericAlias(tuple, (str, int)),)),
+            [list, tuple, (str, int)],
+            id="list-of-str-int-tuples",
+        ),
+        pytest.param(_PersonTuple, [(str, int)], id="named-tuple"),
+        pytest.param(_TextInput.model_fields["text"].annotation, [str], id="text-input-model-field-text"),
+        pytest.param(
             _EntityOutput.model_fields["entities"].annotation,
             [list, (float, Literal["tracking-id", _EntityEnum.ORDER_ID], int, int)],
+            id="entity-output-model-field-entities",
         ),
     ],
 )

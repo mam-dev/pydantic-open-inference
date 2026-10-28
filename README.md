@@ -65,9 +65,9 @@ is just a single input named "text" that is supposed to hold a single text, so w
 ```python
 from pydantic_open_inference import InputsBaseModel
 
+
 class ExampleModelInputs(InputsBaseModel):
     text: str
-
 ```
 
 In the same way, we define a pydantic model for the outputs, inheriting from `OutputsBaseModel`.
@@ -81,15 +81,18 @@ from typing import NamedTuple
 from enum import StrEnum
 from pydantic_open_inference import OutputsBaseModel
 
+
 class Label(StrEnum):
     ORDER_ID = "order-id"
     INVOICE_ID = "invoice-id"
+
 
 class Entity(NamedTuple):
     label: Label
     score: float
     start: int
     end: int
+
 
 class ExampleModelOutputs(OutputsBaseModel):
     entities: list[Entity]
