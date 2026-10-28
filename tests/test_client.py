@@ -47,6 +47,7 @@ def mock_httpx_async_client_cls(monkeypatch: pytest.MonkeyPatch) -> Mock:
         mock_client_cls := Mock(spec=httpx.AsyncClient),
     )
     mock_client_cls.return_value.post = AsyncMock(return_value=Mock())
+    mock_client_cls.return_value.get = AsyncMock(return_value=Mock())
     return mock_client_cls
 
 
@@ -163,7 +164,7 @@ def test_client_api_model_metadata(
 
 @pytest.mark.parametrize(
     "model_version, response, timeout, expected",
-    [
+    READINESS_PARAMETERS := [
         (
             None,
             httpx.Response(status_code=200, json={"name": "my_model", "ready": True}),
@@ -231,6 +232,33 @@ def test_client_api_model_readiness(
     )
     assert actual == expected
     mock_httpx_client_cls.return_value.get.assert_called_once_with(
+        "v2/models/my_model/ready" if model_version is None else f"v2/models/my_model/versions/{model_version}/ready",
+        timeout=timeout,
+    )
+
+
+@pytest.mark.parametrize(
+    "model_version, response, timeout, expected",
+    READINESS_PARAMETERS,
+)
+@pytest.mark.asyncio
+async def test_client_api_model_readiness_async(
+    mock_httpx_async_client_cls: Mock,
+    model_version: str | None,
+    response: httpx.Response,
+    timeout: float | None,
+    expected: bool,
+) -> None:
+    response.request = Mock(spec=httpx.Request, url="http://some/url")
+    mock_httpx_async_client_cls.return_value.get.return_value = response
+    api = OpenInferenceHTTPClientAPI(base_url="https://server/")
+    actual = await api.model_readiness_async(
+        "my_model",
+        model_version=model_version,
+        timeout_seconds=timeout,
+    )
+    assert actual == expected
+    mock_httpx_async_client_cls.return_value.get.assert_awaited_once_with(
         "v2/models/my_model/ready" if model_version is None else f"v2/models/my_model/versions/{model_version}/ready",
         timeout=timeout,
     )

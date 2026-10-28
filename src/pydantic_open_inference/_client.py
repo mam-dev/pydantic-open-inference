@@ -94,6 +94,23 @@ class OpenInferenceHTTPClientAPI(metaclass=Singleton):
         except (httpx.HTTPError, json.JSONDecodeError) as error:
             raise OpenInferenceHTTPClientAPIError(error) from error
 
+    @staticmethod
+    def _process_readiness_response(response: httpx.Response) -> bool:
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError:
+            return False
+        else:
+            if not response.content:
+                # No content indicates the "Predict Protocol - Version 2"
+                # which is deceptively similar to the Open Inference V2 protocol
+                # https://github.com/kserve/kserve/blob/master/docs/predict-api/v2/required_api.md
+                # So the fact that the request was successful means the model is ready.
+                return True
+            # Content indicates the actual "Open Inference V2" protocol,
+            # so the readiness is in the "Model Ready Response JSON Object"
+            return cast("bool", response.json().get("ready", False))
+
     def model_metadata(
         self, model_name: str, model_version: str | None = None, timeout_seconds: float | None = None
     ) -> OpenInferenceModelMetadata:
@@ -111,27 +128,22 @@ class OpenInferenceHTTPClientAPI(metaclass=Singleton):
     def model_readiness(
         self, model_name: str, model_version: str | None = None, timeout_seconds: float | None = None
     ) -> bool:
-        try:
-            response = (
-                self._get_sync_client()
-                .get(
-                    f"{self._get_model_url(model_name, model_version)}/ready",
-                    timeout=timeout_seconds,
-                )
-                .raise_for_status()
-            )
-        except httpx.HTTPStatusError:
-            return False
-        else:
-            if not response.content:
-                # No content indicates the "Predict Protocol - Version 2"
-                # which is deceptively similar to the Open Inference V2 protocol
-                # https://github.com/kserve/kserve/blob/master/docs/predict-api/v2/required_api.md
-                # So the fact that the request was successful means the model is ready.
-                return True
-            # Content indicates the actual "Open Inference V2" protocol,
-            # so the readiness is in the "Model Ready Response JSON Object"
-            return cast("bool", response.json().get("ready", False))
+        client = self._get_sync_client()
+        response = client.get(
+            f"{self._get_model_url(model_name, model_version)}/ready",
+            timeout=timeout_seconds,
+        )
+        return self._process_readiness_response(response)
+
+    async def model_readiness_async(
+        self, model_name: str, model_version: str | None = None, timeout_seconds: float | None = None
+    ) -> bool:
+        client = self._get_async_client()
+        response = await client.get(
+            f"{self._get_model_url(model_name, model_version)}/ready",
+            timeout=timeout_seconds,
+        )
+        return self._process_readiness_response(response)
 
     def infer(
         self,
