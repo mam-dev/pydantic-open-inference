@@ -17,6 +17,7 @@ from ._utils import (
     OpenInferenceAPIInput,
     OpenInferenceAPIOutput,
     OpenInferenceAPIRequestedOutput,
+    OpenInferenceModelMetadata,
     get_data,
     get_datatype,
     get_shape,
@@ -270,22 +271,20 @@ class RemoteModel(Generic[InputsModelT, OutputsModelT]):
             model_version=self._model_version,
             timeout_seconds=self._request_timeout_seconds,
         )
+        self._validate_model_metadata(metadata)
 
-        for input_name in self._inputs_model.model_fields:
-            validate_model_tensor(
-                model_metadata=metadata,
-                model_cls=self._inputs_model,
-                field_name=input_name,
-                is_input=True,
-            )
+    async def validate_async(self) -> None:
+        """Validate this instance vs the corresponding remote model.
 
-        for output_name in self._outputs_model.model_fields:
-            validate_model_tensor(
-                model_metadata=metadata,
-                model_cls=self._outputs_model,
-                field_name=output_name,
-                is_input=False,
-            )
+        See "validate" method for further documentation.
+
+        """
+        metadata = await self._client_api.model_metadata_async(
+            model_name=self._model_name,
+            model_version=self._model_version,
+            timeout_seconds=self._request_timeout_seconds,
+        )
+        self._validate_model_metadata(metadata)
 
     def infer(self, inputs: InputsModelT) -> OutputsModelT:
         """Use the remote model for inference.
@@ -310,3 +309,20 @@ class RemoteModel(Generic[InputsModelT, OutputsModelT]):
                 timeout_seconds=self._request_timeout_seconds,
             )
         )
+
+    def _validate_model_metadata(self, metadata: OpenInferenceModelMetadata) -> None:
+        for input_name in self._inputs_model.model_fields:
+            validate_model_tensor(
+                model_metadata=metadata,
+                model_cls=self._inputs_model,
+                field_name=input_name,
+                is_input=True,
+            )
+
+        for output_name in self._outputs_model.model_fields:
+            validate_model_tensor(
+                model_metadata=metadata,
+                model_cls=self._outputs_model,
+                field_name=output_name,
+                is_input=False,
+            )
